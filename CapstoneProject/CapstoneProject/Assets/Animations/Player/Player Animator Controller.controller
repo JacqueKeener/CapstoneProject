@@ -257,7 +257,7 @@ AnimatorState:
   m_Motion: {fileID: 983018738344948438}
   m_Tag: 
   m_SpeedParameter: speed
-  m_MirrorParameter: 
+  m_MirrorParameter: canIdle
   m_CycleOffsetParameter: 
   m_TimeParameter: 
 --- !u!1102 &-1642542434423764951
