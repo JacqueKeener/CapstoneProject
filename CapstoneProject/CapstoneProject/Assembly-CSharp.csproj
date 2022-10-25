@@ -56,9 +56,11 @@
     <Analyzer Include="C:\Program Files (x86)\Microsoft Visual Studio Tools for Unity\16.0\Analyzers\Microsoft.Unity.Analyzers.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Scripts\ThirdPersonMovement.cs" />
     <Compile Include="Assets\Scripts\AttackSpot.cs" />
     <Compile Include="Assets\Scripts\DashSpot.cs" />
+    <Compile Include="Assets\Scripts\AudioHelper.cs" />
+    <Compile Include="Assets\Scripts\Dummy.cs" />
+    <Compile Include="Assets\Scripts\ThirdPersonMovement.cs" />
   </ItemGroup>
   <ItemGroup>
      <None Include="Assets\TextMesh Pro\Shaders\TMPro.cginc" />

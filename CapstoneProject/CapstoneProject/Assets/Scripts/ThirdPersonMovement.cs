@@ -10,10 +10,15 @@ public class ThirdPersonMovement : MonoBehaviour
     public Transform centerPoint;
     public Transform attackSpot;
     public Animator anim;
+    public AudioClip swingSound;
+    public AudioClip dashSound;
 
     public float speed = 2f;
     public float dashLength = 4f;
     Vector3 lastDir = Vector3.zero;
+    Vector3 transportTarget = Vector3.zero;
+    public float transportTime = .01f;
+    bool oneMore = false;
 
     //public LayerMask mask;
     
@@ -23,14 +28,18 @@ public class ThirdPersonMovement : MonoBehaviour
 
     private IEnumerator idleWatcher;
     bool isRunning = false;
+    bool canMove = true;
     private IEnumerator attackWatcher;
-    bool justAttacked = false;
+    public bool justAttacked = false;
     private IEnumerator dashWatcher;
     bool justDashed = false;
+    private IEnumerator transPorting;
+    bool transporting = false;
 
     public GameObject handAxe;
     public GameObject flyingAxe;
     bool holdingAxe = true;
+    
 
     public TextMeshProUGUI textUI;
 
@@ -58,18 +67,31 @@ public class ThirdPersonMovement : MonoBehaviour
         }
         else
         */
-        {
 
+        if (oneMore)
+        {
+            controller.Move((transportTarget - transform.position) * (Time.deltaTime / transportTime));
+            oneMore = false;
+        }else if (!transporting)
+        {
+            transform.LookAt(centerPoint);
             Vector3 direction = new Vector3(horizontal, 0f, vertical).normalized;
             Vector3 moveDir = new Vector3(0f, 0f, 0f);
             float targetAngle = 0f;
 
-            if (Input.GetButtonDown("Fire3") & !justAttacked & !justDashed)
+            if (Input.GetButtonDown("Fire3") & !justAttacked & !justDashed) //ATTACK
             {
-                controller.Move(transform.forward * (Vector3.Distance(transform.position, centerPoint.position) - 1));
+                Vector3 playerLoc = transform.position;
+                
+                controller.Move(transform.forward * (Vector3.Distance(transform.position, centerPoint.position)));
+                transportTarget = controller.transform.position;
+                controller.Move((transform.forward * -1f) * (Vector3.Distance(playerLoc, transform.position)));
+                Debug.DrawRay(transform.position, transform.forward * (Vector3.Distance(transform.position, transportTarget)), Color.green, 5f);
                 justAttacked = true;
+                anim.SetBool("justAttacked", true);
                 attackWatcher = attackMovementDelay(.4f);
                 StartCoroutine(attackWatcher);
+                StartCoroutine(transportingDelay(transportTime * ((Vector3.Distance(transform.position, transportTarget))/6f)));
 
                 if (holdingAxe)
                 {
@@ -86,27 +108,40 @@ public class ThirdPersonMovement : MonoBehaviour
                 SkinnedMeshRenderer rend = handAxe.GetComponent(typeof(SkinnedMeshRenderer)) as SkinnedMeshRenderer;
                 rend.enabled = false;
                 holdingAxe = false;
+                
+
+
+                rend.enabled = true;
+                holdingAxe = true;
             }
-            else if (Input.GetButtonDown("Fire1") & !justAttacked & !justDashed)
+            else if (Input.GetButtonDown("Fire1") & !justAttacked & !justDashed) //DASH
             {
                 if (direction.magnitude >= 0.1f)
                 {
                     targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + cam.eulerAngles.y;
                     moveDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
+                    Vector3 playerLoc = transform.position;
                     controller.Move(moveDir.normalized * dashLength);
+                    transportTarget = controller.transform.position;
+                    controller.Move((moveDir.normalized * -1) * Mathf.Abs(Vector3.Distance(playerLoc,transportTarget)));
                     justDashed = true;
-                    dashWatcher = dashDelay(.4f);
+                    dashWatcher = dashDelay((transportTime * ((Vector3.Distance(transform.position, transportTarget)) / 6f)));
                     StartCoroutine(dashWatcher);
                 }
                 else
                 {
+                    Vector3 playerLoc = transform.position;
                     controller.Move(lastDir.normalized * dashLength);
+                    transportTarget = controller.transform.position;
+                    controller.Move((lastDir.normalized * -1) * Mathf.Abs(Vector3.Distance(playerLoc, transportTarget)));
                     justDashed = true;
-                    dashWatcher = dashDelay(.4f);
+                    dashWatcher = dashDelay((transportTime * ((Vector3.Distance(transform.position, transportTarget)) / 6f)));
                     StartCoroutine(dashWatcher);
                 }
+                transporting = true;
+                StartCoroutine(transportingDelay(transportTime * ((Vector3.Distance(transform.position, transportTarget)) / 6f)));
             }
-            else if (direction.magnitude >= 0.1f)
+            else if (direction.magnitude >= 0.1f & canMove) //WALK - NO DASH NO ATTACK
             {
                 targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + cam.eulerAngles.y;
                 //float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime);
@@ -122,8 +157,8 @@ public class ThirdPersonMovement : MonoBehaviour
 
                 moveDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
                 lastDir = moveDir;
-                Debug.DrawRay(transform.position, moveDir.normalized * dashLength, Color.yellow) ;
-                
+                Debug.DrawRay(transform.position, moveDir.normalized * dashLength, Color.yellow);
+
                 controller.Move(moveDir.normalized * speed * Time.deltaTime);
                 anim.SetBool("moving", true);
                 anim.SetBool("canIdle", false);
@@ -135,7 +170,7 @@ public class ThirdPersonMovement : MonoBehaviour
                 anim.SetFloat("yMove", (transform.rotation.eulerAngles.y) / 360f);
                 //anim.SetFloat("rotation", (Vector2.Angle(transform.position, centerPoint.position) + Vector2.Angle(Vector2.zero ,new Vector2(horizontal, vertical))) /360f);
                 anim.SetFloat("rotation", (anim.GetFloat("xMove") + anim.GetFloat("yMove")) % 1f);
-                
+
             }
             else
             {
@@ -148,6 +183,14 @@ public class ThirdPersonMovement : MonoBehaviour
                 }
             }
         }
+        else
+        {
+            Vector3 offset = transportTarget - transform.position;
+            if (offset.magnitude > .05f)
+            {
+                controller.Move((transportTarget - transform.position) * (Time.deltaTime / transportTime));
+            }
+        }
     }
 
     public IEnumerator idleDelay(float waitTime)
@@ -158,16 +201,36 @@ public class ThirdPersonMovement : MonoBehaviour
 
     public IEnumerator attackMovementDelay(float waitTime)
     {
+        canMove = false;
+        AudioHelper.PlayClip2D(swingSound, .2f);
         yield return new WaitForSeconds(waitTime);
         justAttacked = false;
+        canMove = true;
+        anim.SetBool("justAttacked", false);
         //anim.SetBool("canIdle", true);
     }
 
     public IEnumerator dashDelay(float waitTime)
     {
+        anim.SetBool("justDashed", true);
+        AudioHelper.PlayClip2D(dashSound,.08f);
         yield return new WaitForSeconds(waitTime);
+        anim.SetBool("justDashed", false);
         justDashed = false;
     }
+
+    public IEnumerator transportingDelay(float waitTime)
+    {
+        //canMove = false;
+        transporting = true;
+        anim.SetBool("transporting", true);
+        yield return new WaitForSeconds(waitTime);
+        anim.SetBool("transporting", false);
+        transporting = false;
+        oneMore = true;
+        //transform.position.Set(transportTarget.x, transportTarget.y, transportTarget.z);
+    }
+
 
     private void OnTriggerEnter(Collider other)
     {
