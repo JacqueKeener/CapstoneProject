@@ -12,6 +12,9 @@ public class ThirdPersonMovement : MonoBehaviour
     public Animator anim;
     public AudioClip swingSound;
     public AudioClip dashSound;
+    public AudioClip throwGrunt;
+    public AudioClip throwNoise;
+    public GameObject dashSmoke;
 
     public float speed = 2f;
     public float dashLength = 4f;
@@ -35,10 +38,15 @@ public class ThirdPersonMovement : MonoBehaviour
     bool justDashed = false;
     private IEnumerator transPorting;
     bool transporting = false;
+    private IEnumerator throwing;
+    public bool justThrew = false;
 
     public GameObject handAxe;
-    public GameObject flyingAxe;
-    bool holdingAxe = true;
+    public FlyingAxe flyingAxe;
+    public ThrowingAxe throwingAxe;
+    public bool holdingAxe = true;
+
+    bool heldWeapon = true;
     
 
     public TextMeshProUGUI textUI;
@@ -47,12 +55,18 @@ public class ThirdPersonMovement : MonoBehaviour
 
     void Start()
     {
-        //Cursor.lockState = CursorLockMode.Locked;
+        anim.SetBool("heldWeapon", true);
+        //Cursor.lockState = CursorLockMode.Locked;                   YOU NEED THIS
     }
 
     // Update is called once per frame
     void Update()
     {
+        dashSmoke.transform.position = transform.position;
+        if (holdingAxe)
+        {
+            anim.SetBool("heldWeapon", true);
+        }
         float horizontal = Input.GetAxisRaw("Horizontal");
         float vertical = Input.GetAxisRaw("Vertical");
         /*
@@ -79,7 +93,7 @@ public class ThirdPersonMovement : MonoBehaviour
             Vector3 moveDir = new Vector3(0f, 0f, 0f);
             float targetAngle = 0f;
 
-            if (Input.GetButtonDown("Fire3") & !justAttacked & !justDashed) //ATTACK
+            if (Input.GetButtonDown("Fire3") & !justAttacked & !justDashed & !justThrew) //ATTACK
             {
                 Vector3 playerLoc = transform.position;
                 
@@ -92,29 +106,34 @@ public class ThirdPersonMovement : MonoBehaviour
                 attackWatcher = attackMovementDelay(.4f);
                 StartCoroutine(attackWatcher);
                 StartCoroutine(transportingDelay(transportTime * ((Vector3.Distance(transform.position, transportTarget))/6f)));
-
+                /*
                 if (holdingAxe)
                 {
                     Vector2 axeLand = new Vector2(0, 0);
-                    while (Vector2.Distance(axeLand, new Vector2(centerPoint.position.x, centerPoint.position.z)) < 5)
+                    while (Vector2.Distance(axeLand, new Vector2(centerPoint.position.x, centerPoint.position.z)) < 7)
                     {
                         axeLand = Random.insideUnitCircle * 10;
                         axeLand.Set(axeLand.x - 1.15f, axeLand.y);
                     }
-                    flyingAxe.transform.position = new Vector3(axeLand.x, -1.6f, axeLand.y);
+                    flyingAxe.targetLoc.position = new Vector3(axeLand.x, 0f, axeLand.y);
+                    flyingAxe.startLoc.position = attackSpot.position;
+                    flyingAxe.AssignCenterAndFlying();
+                    flyingAxe.flying = true;
+
+                    //flyingAxe.transform.position = new Vector3(axeLand.x, -1.6f, axeLand.y);
 
                 }
-
+                
                 SkinnedMeshRenderer rend = handAxe.GetComponent(typeof(SkinnedMeshRenderer)) as SkinnedMeshRenderer;
                 rend.enabled = false;
                 holdingAxe = false;
-                
+                */
 
 
-                rend.enabled = true;
-                holdingAxe = true;
+                //rend.enabled = true;
+                //holdingAxe = true;
             }
-            else if (Input.GetButtonDown("Fire1") & !justAttacked & !justDashed) //DASH
+            else if (Input.GetButtonDown("Fire1") & !justAttacked & !justDashed & !justThrew) //DASH
             {
                 if (direction.magnitude >= 0.1f)
                 {
@@ -141,6 +160,12 @@ public class ThirdPersonMovement : MonoBehaviour
                 transporting = true;
                 StartCoroutine(transportingDelay(transportTime * ((Vector3.Distance(transform.position, transportTarget)) / 6f)));
             }
+            else if(Input.GetButtonDown("Jump") & !justAttacked & !justDashed & !justThrew & holdingAxe & Vector3.Distance(centerPoint.position,transform.position) > 3f) //THROW ATTACK
+            {
+                justThrew = true;
+                anim.SetBool("justThrew", true);
+                StartCoroutine(throwingDelay(.5f));
+            }
             else if (direction.magnitude >= 0.1f & canMove) //WALK - NO DASH NO ATTACK
             {
                 targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + cam.eulerAngles.y;
@@ -162,7 +187,11 @@ public class ThirdPersonMovement : MonoBehaviour
                 controller.Move(moveDir.normalized * speed * Time.deltaTime);
                 anim.SetBool("moving", true);
                 anim.SetBool("canIdle", false);
-                StopCoroutine(idleWatcher);
+                if(idleWatcher != null)
+                {
+                    StopCoroutine(idleWatcher);
+                }
+
                 isRunning = false;
 
                 Vector2 temp = new Vector2(direction.x, direction.z);
@@ -202,9 +231,37 @@ public class ThirdPersonMovement : MonoBehaviour
     public IEnumerator attackMovementDelay(float waitTime)
     {
         canMove = false;
+        
         AudioHelper.PlayClip2D(swingSound, .2f);
-        yield return new WaitForSeconds(waitTime);
+        yield return new WaitForSeconds(waitTime * (3f/7f));
+
+
+        if (holdingAxe)
+        {
+            Vector2 axeLand = new Vector2(0, 0);
+            while (Vector2.Distance(axeLand, new Vector2(centerPoint.position.x, centerPoint.position.z)) < 7)
+            {
+                axeLand = Random.insideUnitCircle * 10;
+                axeLand.Set(axeLand.x - 1.15f, axeLand.y);
+            }
+            flyingAxe.targetLoc.position = new Vector3(axeLand.x, 0f, axeLand.y);
+            flyingAxe.startLoc.position = attackSpot.position;
+            flyingAxe.AssignCenterAndFlying();
+            flyingAxe.flying = true;
+
+            //flyingAxe.transform.position = new Vector3(axeLand.x, -1.6f, axeLand.y);
+
+        }
+
+        SkinnedMeshRenderer rend = handAxe.GetComponent(typeof(SkinnedMeshRenderer)) as SkinnedMeshRenderer;
+        rend.enabled = false;
+        holdingAxe = false;
+
+        
+        yield return new WaitForSeconds(waitTime * (4f / 7f));
         justAttacked = false;
+        heldWeapon = false;
+        anim.SetBool("heldWeapon", false);
         canMove = true;
         anim.SetBool("justAttacked", false);
         //anim.SetBool("canIdle", true);
@@ -213,9 +270,11 @@ public class ThirdPersonMovement : MonoBehaviour
     public IEnumerator dashDelay(float waitTime)
     {
         anim.SetBool("justDashed", true);
+        dashSmoke.SetActive(true);
         AudioHelper.PlayClip2D(dashSound,.08f);
         yield return new WaitForSeconds(waitTime);
         anim.SetBool("justDashed", false);
+        dashSmoke.SetActive(false);
         justDashed = false;
     }
 
@@ -231,13 +290,43 @@ public class ThirdPersonMovement : MonoBehaviour
         //transform.position.Set(transportTarget.x, transportTarget.y, transportTarget.z);
     }
 
+    public IEnumerator throwingDelay(float waitTime)
+    {
+        canMove = false;
+        anim.SetBool("justThrew", true);
+        AudioHelper.PlayClip2D(throwGrunt, .4f);
+        AudioHelper.PlayClip2D(throwNoise, .2f);
+        yield return new WaitForSeconds(waitTime * (4f / 8f));
+        
+        throwingAxe.targetLoc.position = attackSpot.position;
+        throwingAxe.StartFlight();
+        throwingAxe.flying = true;
+        
+
+        SkinnedMeshRenderer rend = handAxe.GetComponent(typeof(SkinnedMeshRenderer)) as SkinnedMeshRenderer;
+        rend.enabled = false;
+        holdingAxe = false;
+
+        yield return new WaitForSeconds(waitTime * (4f / 8f));
+        justThrew = false;
+        anim.SetBool("justThrew", false);
+        anim.SetBool("heldWeapon", false);
+        
+        heldWeapon = false;
+        canMove = true;
+
+    }
+
 
     private void OnTriggerEnter(Collider other)
     {
         if(other.transform.gameObject.layer == 6)
         {
-            other.transform.SetPositionAndRotation(new Vector3(-1.15f, -10f, 0f), Quaternion.identity);
+            other.transform.position = new Vector3(-1.15f, -10f, 0f);
+            other.transform.eulerAngles.Set(0f, 0f, 0f);
             holdingAxe = true;
+            heldWeapon = true;
+            anim.SetBool("heldWeapon", true);
             SkinnedMeshRenderer rend = handAxe.GetComponent(typeof(SkinnedMeshRenderer)) as SkinnedMeshRenderer;
             rend.enabled = true;
         }else if(other.transform.gameObject.layer == 7)

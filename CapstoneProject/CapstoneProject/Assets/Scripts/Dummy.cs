@@ -10,6 +10,7 @@ public class Dummy : MonoBehaviour
     public ParticleSystem sparks;
     bool hasBeenHit = false;
     public AudioClip hitSound;
+    public ThrowingAxe axe;
     
 
     // Start is called before the first frame update
@@ -24,7 +25,7 @@ public class Dummy : MonoBehaviour
         transform.LookAt(playerLoc);
         hurt.SetBool("beingHit", player.justAttacked);
 
-        if (!hasBeenHit & player.justAttacked)
+        if ((!hasBeenHit & player.justAttacked) || (!hasBeenHit & axe.falling == true))
         {
             hasBeenHit = true;
             sparks.Play();
@@ -36,7 +37,7 @@ public class Dummy : MonoBehaviour
             sparks.transform.LookAt(playerLoc);
         }
 
-        if(hasBeenHit & !player.justAttacked)
+        if((hasBeenHit & !player.justAttacked) && (hasBeenHit & !axe.falling))
         {
             hasBeenHit = false;
         }

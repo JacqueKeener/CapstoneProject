@@ -59,8 +59,11 @@
     <Compile Include="Assets\Scripts\AttackSpot.cs" />
     <Compile Include="Assets\Scripts\DashSpot.cs" />
     <Compile Include="Assets\Scripts\AudioHelper.cs" />
+    <Compile Include="Assets\Scripts\FlyingAxe.cs" />
     <Compile Include="Assets\Scripts\Dummy.cs" />
     <Compile Include="Assets\Scripts\ThirdPersonMovement.cs" />
+    <Compile Include="Assets\Scripts\ThrowingAxe.cs" />
+    <Compile Include="Assets\Scripts\ReleaseSpot.cs" />
   </ItemGroup>
   <ItemGroup>
      <None Include="Assets\TextMesh Pro\Shaders\TMPro.cginc" />
